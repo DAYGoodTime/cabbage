@@ -2,19 +2,19 @@ package com.day.cabbage.services.impl;
 
 import cn.hutool.log.Log;
 import cn.hutool.log.LogFactory;
-import com.day.cabbage.constant.CabbageConfig;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.day.cabbage.manager.ApiManager;
 import com.day.cabbage.manager.WebPageManager;
+import com.day.cabbage.mapper.CurrentMapper;
 import com.day.cabbage.mapper.UserInfoMapper;
-import com.day.cabbage.pojo.User;
+import com.day.cabbage.mapper.UserMapper;
 import com.day.cabbage.pojo.osu.Beatmap;
+import com.day.cabbage.pojo.osu.OsuUser;
 import com.day.cabbage.pojo.osu.Score;
 import com.day.cabbage.pojo.osu.Userinfo;
 import com.day.cabbage.services.BotService;
 import com.day.cabbage.services.UserService;
 import com.day.cabbage.util.ImgUtil;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -31,81 +31,46 @@ public class BotServiceImpl implements BotService {
     private final ApiManager apiManager;
     private final UserInfoMapper userInfoMapper;
     private final ImgUtil imgUtil;
+    private final UserMapper userMapper;
+    private final CurrentMapper currentMapper;
 
 
     @Override
-    public String getStat(Integer uid, Integer mode) {
-        String role;
-        int scoreRank;
-        User user = userService.getUser(uid);
-        Userinfo userFromAPI = apiManager.getUser(mode, uid);
-        Userinfo userInDB = null;
-        boolean near = false;
-        int day = 1;
-        if (user == null) {
-//            logger.info("玩家" + userFromAPI.getUserName() + "初次使用本机器人，开始登记");
-//            userService.registerUser(userFromAPI.getUserId(), mode,, CabbageConfig.DEFAULT_ROLE);
-//            userInDB = userFromAPI;
-//            role = "creep";
-            //TODO return need bind
-            return null;
-        } else if (userFromAPI == null) {
-            logger.warn("从api获得的用户为null:" + uid);
-            return null;
-        } else if (user.isBanned()) {
-            //当数据库查到该玩家，并且被ban时，从数据库里取出最新的一份userinfo伪造
-            userFromAPI = userInfoMapper.getNearestUserInfo(mode, user.getUserId(), LocalDate.now());
-            //尝试补上当前用户名
-            if (user.getCurrentUname() != null) {
-                userFromAPI.setUserName(user.getCurrentUname());
-            } else {
-                List<String> list = new GsonBuilder().create().fromJson(user.getLegacyUname(), new TypeToken<List<String>>() {
-                }.getType());
-                if (list.size() > 0) {
-                    userFromAPI.setUserName(list.get(0));
-                } else {
-                    userFromAPI.setUserName(String.valueOf(user.getUserId()));
-                }
-            }
-            role = user.getMainRole();
-            day = 0;
-            mode = user.getMode();
-        } else {
-            //not null and banned
-            role = user.getMainRole();
-            //TODO get user from Redis
-//            userInDB = userFromAPI;
-//            if (userInDB == null) {
-//                userInDB = userInfoDAO.getUserInfo(mode, userFromAPI.getUserId(), LocalDate.now().minusDays(day));
-//                if (userInDB == null) {
-//                    userInDB = userInfoDAO.getNearestUserInfo(mode, userFromAPI.getUserId(), LocalDate.now().minusDays(day));
-//                    near = true;
-//                }
-//            }
-            mode = user.getMode();
+    public boolean bindUser(Integer mode, String platformId, Integer osuId) {
+        Userinfo apiUser = apiManager.getUser(mode, osuId);
+        OsuUser user = new OsuUser(
+                platformId, osuId, "normal", apiUser.getUserName(), apiUser.getUserName(), false, mode, LocalDate.now()
+        );
+        Integer currentOsuId = currentMapper.getCurrentOsuId(platformId);
+        if (currentOsuId == null) {
+            currentMapper.addCurrent(platformId, osuId);
         }
+        userInfoMapper.insert(apiUser);
+        return userService.registerUser(user);
+    }
 
+    @Override
+    public String getStat(Integer uid, Integer mode) {
+        int day = 1; //compare day
+        int scoreRank;
+        Userinfo userFromAPI = apiManager.getUser(mode, uid);
         //获取score rank
         scoreRank = webPageManager.getRank(userFromAPI.getRankedScore(), 1, 2000);
-        return imgUtil.drawUserInfo(userFromAPI, userFromAPI, role, day, near, scoreRank, mode);
+        return imgUtil.drawUserInfo(userFromAPI, userFromAPI, "Normal", day, false, scoreRank, mode);
     }
 
     @Override
     public String getRecent(Integer uid, Integer mode) {
-        User user = userService.getUser(uid);
         Userinfo userFromAPI;
-        if (user == null) {
-            //TODO user not found
-            return null;
-        }
-        user.setLastActiveDate(LocalDate.now());
-        if (user.isBanned()) {
-            //TODO user is banned
-            return null;
-        }
         //TODO autodetect mode
-
-        userFromAPI = apiManager.getUser(mode, user.getUserId());
+        if (mode == null) {
+            OsuUser user = userService.getUser(uid);
+            if (user == null) mode = 0;
+            else {
+                mode = user.getMainMode();
+            }
+        }
+        userFromAPI = apiManager.getUser(mode, uid);
         if (userFromAPI == null) {
             //TODO get api null
             return null;
@@ -137,7 +102,14 @@ public class BotServiceImpl implements BotService {
     }
 
     @Override
-    public String getBP(Integer uid,Integer num, Integer mode) {
+    public List<OsuUser> getBindUser(String platformId) {
+        QueryWrapper<OsuUser> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("platform_id", platformId);
+        return userMapper.selectList(queryWrapper);
+    }
+
+    @Override
+    public String getBP(Integer uid, Integer num, Integer mode) {
         //TODO mode selection
         mode = 0;
         //TODO only text

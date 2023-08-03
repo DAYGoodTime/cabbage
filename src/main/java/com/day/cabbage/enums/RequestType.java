@@ -6,6 +6,8 @@ public enum RequestType {
     STAT,
     STATME,
     RECENT,
+    BIND,
+    GETBINDLIST,
     ERROR;
 
     public static RequestType getIndex(int index){

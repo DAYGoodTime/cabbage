@@ -1,15 +1,17 @@
 package com.day.cabbage.services;
 
 import com.day.cabbage.pojo.User;
+import com.day.cabbage.pojo.osu.OsuUser;
 import okhttp3.internal.platform.Platform;
 
 public interface UserService {
 
-    User getUser(Integer uid);
+    OsuUser getUser(Integer ousId);
 
-    User registerUser(Integer userId, Integer mode, String platformId, String role);
+    boolean registerUser(OsuUser osuUser);
 
     void updateUser(User user);
 
-    Integer getOsuIdByByPlatformId(String platformId);
+    boolean isExit(Integer platformId);
+
 }

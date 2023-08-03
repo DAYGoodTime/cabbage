@@ -3,54 +3,49 @@ package com.day.cabbage.pojo;
 import java.util.List;
 
 public class Argument {
-    private String kookId;
-    private String osuId;
+    private String platformId;
+    private Integer osuId;
     private String osuName;
     private Integer mode;
     private List<String> subArgument;
 
-    public String getKookId() {
-        return kookId;
+    public String getPlatformId() {
+        return platformId;
     }
 
-    public String getOsuId() {
+    public void setPlatformId(String platformId) {
+        this.platformId = platformId;
+    }
+
+    public Integer getOsuId() {
         return osuId;
+    }
+
+    public void setOsuId(Integer osuId) {
+        this.osuId = osuId;
     }
 
     public String getOsuName() {
         return osuName;
     }
 
+    public void setOsuName(String osuName) {
+        this.osuName = osuName;
+    }
+
     public Integer getMode() {
         return mode;
+    }
+
+    public void setMode(Integer mode) {
+        this.mode = mode;
     }
 
     public List<String> getSubArgument() {
         return subArgument;
     }
 
-    public Argument setKookId(String kookId) {
-        this.kookId = kookId;
-        return this;
-    }
-
-    public Argument setOsuId(String osuId) {
-        this.osuId = osuId;
-        return this;
-    }
-
-    public Argument setOsuName(String osuName) {
-        this.osuName = osuName;
-        return this;
-    }
-
-    public Argument setMode(Integer mode) {
-        this.mode = mode;
-        return this;
-    }
-
-    public Argument setSubArgument(List<String> subArgument) {
+    public void setSubArgument(List<String> subArgument) {
         this.subArgument = subArgument;
-        return this;
     }
 }
